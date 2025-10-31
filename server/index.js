@@ -1,4 +1,3 @@
-// server/index.js
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
@@ -7,12 +6,12 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(cors());
 app.use(express.json());
 
-const MONGO_URI = 'mongodb+srv://newDev:6MbAMckFhn2uoFSj@safe-ship-sandbox.wntjwof.mongodb.net/';
+const MONGO_URI = process.env.MONGO_URI;
 
 let client;
 let dummyDataCollection;
@@ -22,12 +21,12 @@ async function connectToMongoDB() {
   try {
     client = new MongoClient(MONGO_URI);
     await client.connect();
-    console.log('✅ Connected to MongoDB');
+    console.log('Connected to MongoDB');
 
     const adminDb = client.db().admin();
     const { databases } = await adminDb.listDatabases();
 
-    console.log('📁 Available databases:', databases.map(db => db.name).join(', '));
+    console.log('Available databases:', databases.map(db => db.name).join(', '));
 
     let foundData = false;
     let foundRoles = false;
@@ -42,24 +41,34 @@ async function connectToMongoDB() {
       if (!foundData && collectionNames.includes('dummy_data')) {
         dummyDataCollection = db.collection('dummy_data');
         foundData = true;
-        console.log(`✅ Found 'dummy_data' in database: ${dbInfo.name}`);
+
+        const allFields = new Set();
+        const allDocs = await dummyDataCollection.find().limit(20).toArray();
+        allDocs.forEach(doc => {
+          Object.keys(doc).forEach(key => allFields.add(key));
+        });
       }
 
       if (!foundRoles && collectionNames.includes('dummy_roles')) {
         dummyRolesCollection = db.collection('dummy_roles');
         foundRoles = true;
-        console.log(`✅ Found 'dummy_roles' in database: ${dbInfo.name}`);
+
+        const allFields = new Set();
+        const allDocs = await dummyRolesCollection.find().limit(20).toArray();
+        allDocs.forEach(doc => {
+          Object.keys(doc).forEach(key => allFields.add(key));
+        });
       }
     }
 
     if (!foundData || !foundRoles) {
-      console.warn('⚠️  Warning: Could not find one or both collections');
+      console.warn('Warning: Could not find one or both collections');
       if (!foundData) console.warn('   - dummy_data collection not found');
       if (!foundRoles) console.warn('   - dummy_roles collection not found');
     }
 
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
+    console.error('MongoDB connection error:', error);
     process.exit(1);
   }
 }
@@ -83,6 +92,7 @@ const FAKE_USERS = [
     name: 'Manager User'
   }
 ];
+
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -137,7 +147,6 @@ app.get('/api/auth/verify', authenticateToken, (req, res) => {
   res.json({ valid: true, user: req.user });
 });
 
-
 // Get all jobs (dummy_data)
 app.get('/api/jobs', authenticateToken, async (req, res) => {
   try {
@@ -173,28 +182,39 @@ app.get('/api/analytics/summary', authenticateToken, async (req, res) => {
 
     const jobs = await dummyDataCollection.find().toArray();
 
+    // Calculate total profit
     const totalProfit = jobs.reduce((sum, job) => sum + (job.profit || 0), 0);
     const totalJobs = jobs.length;
     const avgProfitPerJob = totalJobs > 0 ? totalProfit / totalJobs : 0;
 
-    const jobsByStatus = jobs.reduce((acc, job) => {
-      const status = job.status || 'unknown';
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {});
+    // Count jobs by status (paid vs unpaid)
+    const paidJobs = jobs.filter(job => job.status === 'paid').length;
+    const unpaidJobs = jobs.filter(job => job.status === 'unpaid').length;
+
+    // Calculate profit from paid vs unpaid
+    const paidProfit = jobs
+      .filter(job => job.status === 'paid')
+      .reduce((sum, job) => sum + (job.profit || 0), 0);
+    const unpaidProfit = jobs
+      .filter(job => job.status === 'unpaid')
+      .reduce((sum, job) => sum + (job.profit || 0), 0);
 
     res.json({
       totalProfit,
       totalJobs,
-      avgProfitPerJob,
-      jobsByStatus
+      avgProfitPerJob: Math.round(avgProfitPerJob * 100) / 100,
+      paidJobs,
+      unpaidJobs,
+      paidProfit,
+      unpaidProfit,
+      paymentRate: totalJobs > 0 ? Math.round((paidJobs / totalJobs) * 100 * 100) / 100 : 0
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Profit by Team/Department
+// Profit by Team/Role (Tech Sales, Home Sales, Auto Sales)
 app.get('/api/analytics/profit-by-team', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -204,34 +224,47 @@ app.get('/api/analytics/profit-by-team', authenticateToken, async (req, res) => 
     const jobs = await dummyDataCollection.find().toArray();
     const roles = await dummyRolesCollection.find().toArray();
 
-    const agentDepartmentMap = {};
+    // Create a map of agent name to role/department
+    const agentRoleMap = {};
     roles.forEach(role => {
-      agentDepartmentMap[role.agentId || role.agent_id] = role.department || 'Unknown';
+      agentRoleMap[role.agent] = role.role;
     });
 
+    // Group profits by role
     const profitByTeam = {};
     jobs.forEach(job => {
-      const agentId = job.agentId || job.agent_id;
-      const department = agentDepartmentMap[agentId] || 'Unassigned';
+      const agentName = job.agent;
+      const role = agentRoleMap[agentName] || 'Unassigned';
       const profit = job.profit || 0;
 
-      if (!profitByTeam[department]) {
-        profitByTeam[department] = {
-          department,
+      if (!profitByTeam[role]) {
+        profitByTeam[role] = {
+          team: role,
           totalProfit: 0,
           jobCount: 0,
-          avgProfit: 0
+          avgProfit: 0,
+          paidJobs: 0,
+          unpaidJobs: 0
         };
       }
 
-      profitByTeam[department].totalProfit += profit;
-      profitByTeam[department].jobCount += 1;
+      profitByTeam[role].totalProfit += profit;
+      profitByTeam[role].jobCount += 1;
+
+      if (job.status === 'paid') {
+        profitByTeam[role].paidJobs += 1;
+      } else {
+        profitByTeam[role].unpaidJobs += 1;
+      }
     });
 
+    // Calculate averages and payment rates
     Object.values(profitByTeam).forEach(team => {
-      team.avgProfit = team.jobCount > 0 ? team.totalProfit / team.jobCount : 0;
+      team.avgProfit = team.jobCount > 0 ? Math.round((team.totalProfit / team.jobCount) * 100) / 100 : 0;
+      team.paymentRate = team.jobCount > 0 ? Math.round((team.paidJobs / team.jobCount) * 100 * 100) / 100 : 0;
     });
 
+    // Convert to array and sort by profit
     const result = Object.values(profitByTeam).sort((a, b) => b.totalProfit - a.totalProfit);
 
     res.json(result);
@@ -250,39 +283,47 @@ app.get('/api/analytics/profit-by-agent', authenticateToken, async (req, res) =>
     const jobs = await dummyDataCollection.find().toArray();
     const roles = await dummyRolesCollection.find().toArray();
 
-    const agentInfoMap = {};
+    // Create agent info map
+    const agentRoleMap = {};
     roles.forEach(role => {
-      const agentId = role.agentId || role.agent_id;
-      agentInfoMap[agentId] = {
-        name: role.agentName || role.agent_name || `Agent ${agentId}`,
-        department: role.department || 'Unknown'
-      };
+      agentRoleMap[role.agent] = role.role;
     });
 
+    // Group by agent
     const profitByAgent = {};
     jobs.forEach(job => {
-      const agentId = job.agentId || job.agent_id || 'unknown';
+      const agentName = job.agent;
       const profit = job.profit || 0;
 
-      if (!profitByAgent[agentId]) {
-        profitByAgent[agentId] = {
-          agentId,
-          agentName: agentInfoMap[agentId]?.name || `Agent ${agentId}`,
-          department: agentInfoMap[agentId]?.department || 'Unknown',
+      if (!profitByAgent[agentName]) {
+        profitByAgent[agentName] = {
+          agent: agentName,
+          team: agentRoleMap[agentName] || 'Unknown',
           totalProfit: 0,
           jobCount: 0,
-          avgProfit: 0
+          avgProfit: 0,
+          paidJobs: 0,
+          unpaidJobs: 0
         };
       }
 
-      profitByAgent[agentId].totalProfit += profit;
-      profitByAgent[agentId].jobCount += 1;
+      profitByAgent[agentName].totalProfit += profit;
+      profitByAgent[agentName].jobCount += 1;
+
+      if (job.status === 'paid') {
+        profitByAgent[agentName].paidJobs += 1;
+      } else {
+        profitByAgent[agentName].unpaidJobs += 1;
+      }
     });
 
+    // Calculate averages and payment rates
     Object.values(profitByAgent).forEach(agent => {
-      agent.avgProfit = agent.jobCount > 0 ? agent.totalProfit / agent.jobCount : 0;
+      agent.avgProfit = agent.jobCount > 0 ? Math.round((agent.totalProfit / agent.jobCount) * 100) / 100 : 0;
+      agent.paymentRate = agent.jobCount > 0 ? Math.round((agent.paidJobs / agent.jobCount) * 100 * 100) / 100 : 0;
     });
 
+    // Convert to array and sort by profit
     const result = Object.values(profitByAgent).sort((a, b) => b.totalProfit - a.totalProfit);
 
     res.json(result);
@@ -291,8 +332,8 @@ app.get('/api/analytics/profit-by-agent', authenticateToken, async (req, res) =>
   }
 });
 
-// Profit by Outreach Method
-app.get('/api/analytics/profit-by-outreach', authenticateToken, async (req, res) => {
+// Profit by Lead Source (Outreach Method)
+app.get('/api/analytics/profit-by-lead', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection) {
       return res.status(503).json({ error: 'dummy_data collection not found' });
@@ -300,32 +341,44 @@ app.get('/api/analytics/profit-by-outreach', authenticateToken, async (req, res)
 
     const jobs = await dummyDataCollection.find().toArray();
 
-    const profitByMethod = {};
+    // Group by lead source
+    const profitByLead = {};
     jobs.forEach(job => {
-      const method = job.outreachMethod || job.outreach_method || job.leadSource || 'Unknown';
+      const leadSource = job.lead || 'Unknown';
       const profit = job.profit || 0;
 
-      if (!profitByMethod[method]) {
-        profitByMethod[method] = {
-          method,
+      if (!profitByLead[leadSource]) {
+        profitByLead[leadSource] = {
+          leadSource,
           totalProfit: 0,
           jobCount: 0,
           avgProfit: 0,
+          paidJobs: 0,
+          unpaidJobs: 0,
           conversionRate: 0
         };
       }
 
-      profitByMethod[method].totalProfit += profit;
-      profitByMethod[method].jobCount += 1;
+      profitByLead[leadSource].totalProfit += profit;
+      profitByLead[leadSource].jobCount += 1;
+
+      if (job.status === 'paid') {
+        profitByLead[leadSource].paidJobs += 1;
+      } else {
+        profitByLead[leadSource].unpaidJobs += 1;
+      }
     });
 
+    // Calculate averages, payment rates, and conversion rates
     const totalJobs = jobs.length;
-    Object.values(profitByMethod).forEach(method => {
-      method.avgProfit = method.jobCount > 0 ? method.totalProfit / method.jobCount : 0;
-      method.conversionRate = totalJobs > 0 ? (method.jobCount / totalJobs) * 100 : 0;
+    Object.values(profitByLead).forEach(lead => {
+      lead.avgProfit = lead.jobCount > 0 ? Math.round((lead.totalProfit / lead.jobCount) * 100) / 100 : 0;
+      lead.paymentRate = lead.jobCount > 0 ? Math.round((lead.paidJobs / lead.jobCount) * 100 * 100) / 100 : 0;
+      lead.conversionRate = totalJobs > 0 ? Math.round((lead.jobCount / totalJobs) * 100 * 100) / 100 : 0;
     });
 
-    const result = Object.values(profitByMethod).sort((a, b) => b.totalProfit - a.totalProfit);
+    // Sort by total profit
+    const result = Object.values(profitByLead).sort((a, b) => b.totalProfit - a.totalProfit);
 
     res.json(result);
   } catch (error) {
@@ -333,7 +386,7 @@ app.get('/api/analytics/profit-by-outreach', authenticateToken, async (req, res)
   }
 });
 
-// Top Performers
+// Top Performers (Top agents by profit)
 app.get('/api/analytics/top-performers', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -344,32 +397,27 @@ app.get('/api/analytics/top-performers', authenticateToken, async (req, res) => 
     const jobs = await dummyDataCollection.find().toArray();
     const roles = await dummyRolesCollection.find().toArray();
 
-    const agentInfoMap = {};
+    const agentRoleMap = {};
     roles.forEach(role => {
-      const agentId = role.agentId || role.agent_id;
-      agentInfoMap[agentId] = {
-        name: role.agentName || role.agent_name || `Agent ${agentId}`,
-        department: role.department || 'Unknown'
-      };
+      agentRoleMap[role.agent] = role.role;
     });
 
     const profitByAgent = {};
     jobs.forEach(job => {
-      const agentId = job.agentId || job.agent_id || 'unknown';
+      const agentName = job.agent;
       const profit = job.profit || 0;
 
-      if (!profitByAgent[agentId]) {
-        profitByAgent[agentId] = {
-          agentId,
-          agentName: agentInfoMap[agentId]?.name || `Agent ${agentId}`,
-          department: agentInfoMap[agentId]?.department || 'Unknown',
+      if (!profitByAgent[agentName]) {
+        profitByAgent[agentName] = {
+          agent: agentName,
+          team: agentRoleMap[agentName] || 'Unknown',
           totalProfit: 0,
           jobCount: 0
         };
       }
 
-      profitByAgent[agentId].totalProfit += profit;
-      profitByAgent[agentId].jobCount += 1;
+      profitByAgent[agentName].totalProfit += profit;
+      profitByAgent[agentName].jobCount += 1;
     });
 
     const result = Object.values(profitByAgent)
@@ -394,20 +442,440 @@ app.get('/api/analytics/efficiency', authenticateToken, async (req, res) => {
 
     const totalAgents = roles.length;
     const totalJobs = jobs.length;
-    const avgJobsPerAgent = totalAgents > 0 ? totalJobs / totalAgents : 0;
+    const avgJobsPerAgent = totalAgents > 0 ? Math.round((totalJobs / totalAgents) * 100) / 100 : 0;
 
-    const completedJobs = jobs.filter(job =>
-      job.status === 'completed' || job.status === 'closed' || job.status === 'won'
-    ).length;
-    const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
+    // Calculate paid/unpaid jobs
+    const paidJobs = jobs.filter(job => job.status === 'paid').length;
+    const unpaidJobs = jobs.filter(job => job.status === 'unpaid').length;
+    const paymentRate = totalJobs > 0 ? Math.round((paidJobs / totalJobs) * 100 * 100) / 100 : 0;
+
+    // Count unique lead sources
+    const uniqueLeadSources = [...new Set(jobs.map(job => job.lead))].length;
+
+    // Calculate team distribution
+    const teamCounts = {};
+    roles.forEach(role => {
+      teamCounts[role.role] = (teamCounts[role.role] || 0) + 1;
+    });
 
     res.json({
       totalAgents,
       totalJobs,
-      avgJobsPerAgent: Math.round(avgJobsPerAgent * 100) / 100,
-      completedJobs,
-      completionRate: Math.round(completionRate * 100) / 100
+      avgJobsPerAgent,
+      paidJobs,
+      unpaidJobs,
+      paymentRate,
+      uniqueLeadSources,
+      teamDistribution: teamCounts
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== ADVANCED ANALYTICS ====================
+
+// Time-based Analytics (Trends over time)
+app.get('/api/analytics/trends', authenticateToken, async (req, res) => {
+  try {
+    if (!dummyDataCollection) {
+      return res.status(503).json({ error: 'dummy_data collection not found' });
+    }
+
+    const jobs = await dummyDataCollection.find().toArray();
+
+    // Group by month
+    const profitByMonth = {};
+    jobs.forEach(job => {
+      const date = new Date(job.timestamp);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!profitByMonth[monthKey]) {
+        profitByMonth[monthKey] = {
+          month: monthKey,
+          totalProfit: 0,
+          jobCount: 0,
+          avgProfit: 0,
+          paidJobs: 0,
+          unpaidJobs: 0
+        };
+      }
+
+      profitByMonth[monthKey].totalProfit += job.profit || 0;
+      profitByMonth[monthKey].jobCount += 1;
+
+      if (job.status === 'paid') {
+        profitByMonth[monthKey].paidJobs += 1;
+      } else {
+        profitByMonth[monthKey].unpaidJobs += 1;
+      }
+    });
+
+    // Calculate averages and sort by month
+    const result = Object.values(profitByMonth)
+      .map(month => ({
+        ...month,
+        avgProfit: month.jobCount > 0 ? Math.round((month.totalProfit / month.jobCount) * 100) / 100 : 0,
+        paymentRate: month.jobCount > 0 ? Math.round((month.paidJobs / month.jobCount) * 100 * 100) / 100 : 0
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Agent Performance Comparison (Best vs Worst)
+app.get('/api/analytics/performance-comparison', authenticateToken, async (req, res) => {
+  try {
+    if (!dummyDataCollection || !dummyRolesCollection) {
+      return res.status(503).json({ error: 'Required collections not found' });
+    }
+
+    const jobs = await dummyDataCollection.find().toArray();
+    const roles = await dummyRolesCollection.find().toArray();
+
+    const agentRoleMap = {};
+    roles.forEach(role => {
+      agentRoleMap[role.agent] = role.role;
+    });
+
+    const profitByAgent = {};
+    jobs.forEach(job => {
+      const agentName = job.agent;
+      const profit = job.profit || 0;
+
+      if (!profitByAgent[agentName]) {
+        profitByAgent[agentName] = {
+          agent: agentName,
+          team: agentRoleMap[agentName] || 'Unknown',
+          totalProfit: 0,
+          jobCount: 0,
+          avgProfit: 0,
+          paidJobs: 0
+        };
+      }
+
+      profitByAgent[agentName].totalProfit += profit;
+      profitByAgent[agentName].jobCount += 1;
+      if (job.status === 'paid') profitByAgent[agentName].paidJobs += 1;
+    });
+
+    // Calculate averages
+    Object.values(profitByAgent).forEach(agent => {
+      agent.avgProfit = agent.jobCount > 0 ? Math.round((agent.totalProfit / agent.jobCount) * 100) / 100 : 0;
+      agent.paymentRate = agent.jobCount > 0 ? Math.round((agent.paidJobs / agent.jobCount) * 100 * 100) / 100 : 0;
+    });
+
+    const allAgents = Object.values(profitByAgent);
+    const sortedByProfit = [...allAgents].sort((a, b) => b.totalProfit - a.totalProfit);
+
+    // Calculate team averages
+    const teamStats = {};
+    allAgents.forEach(agent => {
+      if (!teamStats[agent.team]) {
+        teamStats[agent.team] = { totalProfit: 0, count: 0 };
+      }
+      teamStats[agent.team].totalProfit += agent.totalProfit;
+      teamStats[agent.team].count += 1;
+    });
+
+    const teamAverages = {};
+    Object.keys(teamStats).forEach(team => {
+      teamAverages[team] = Math.round((teamStats[team].totalProfit / teamStats[team].count) * 100) / 100;
+    });
+
+    res.json({
+      topPerformers: sortedByProfit.slice(0, 5),
+      bottomPerformers: sortedByProfit.slice(-5).reverse(),
+      teamAverages,
+      companyAverage: allAgents.length > 0
+        ? Math.round((allAgents.reduce((sum, a) => sum + a.totalProfit, 0) / allAgents.length) * 100) / 100
+        : 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Lead Source ROI Analysis
+app.get('/api/analytics/lead-roi', authenticateToken, async (req, res) => {
+  try {
+    if (!dummyDataCollection) {
+      return res.status(503).json({ error: 'dummy_data collection not found' });
+    }
+
+    const jobs = await dummyDataCollection.find().toArray();
+
+    const leadAnalysis = {};
+    jobs.forEach(job => {
+      const lead = job.lead || 'Unknown';
+
+      if (!leadAnalysis[lead]) {
+        leadAnalysis[lead] = {
+          leadSource: lead,
+          totalProfit: 0,
+          paidProfit: 0,
+          unpaidProfit: 0,
+          jobCount: 0,
+          paidJobs: 0,
+          unpaidJobs: 0,
+          avgProfit: 0,
+          avgPaidProfit: 0,
+          paymentRate: 0
+        };
+      }
+
+      const profit = job.profit || 0;
+      leadAnalysis[lead].totalProfit += profit;
+      leadAnalysis[lead].jobCount += 1;
+
+      if (job.status === 'paid') {
+        leadAnalysis[lead].paidProfit += profit;
+        leadAnalysis[lead].paidJobs += 1;
+      } else {
+        leadAnalysis[lead].unpaidProfit += profit;
+        leadAnalysis[lead].unpaidJobs += 1;
+      }
+    });
+
+    // Calculate metrics
+    const result = Object.values(leadAnalysis).map(lead => ({
+      ...lead,
+      avgProfit: lead.jobCount > 0 ? Math.round((lead.totalProfit / lead.jobCount) * 100) / 100 : 0,
+      avgPaidProfit: lead.paidJobs > 0 ? Math.round((lead.paidProfit / lead.paidJobs) * 100) / 100 : 0,
+      paymentRate: lead.jobCount > 0 ? Math.round((lead.paidJobs / lead.jobCount) * 100 * 100) / 100 : 0,
+      roi: lead.jobCount > 0 ? Math.round((lead.paidProfit / lead.totalProfit) * 100 * 100) / 100 : 0
+    })).sort((a, b) => b.totalProfit - a.totalProfit);
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Team Lead Source Performance (Which team is best at which lead source)
+app.get('/api/analytics/team-lead-matrix', authenticateToken, async (req, res) => {
+  try {
+    if (!dummyDataCollection || !dummyRolesCollection) {
+      return res.status(503).json({ error: 'Required collections not found' });
+    }
+
+    const jobs = await dummyDataCollection.find().toArray();
+    const roles = await dummyRolesCollection.find().toArray();
+
+    const agentRoleMap = {};
+    roles.forEach(role => {
+      agentRoleMap[role.agent] = role.role;
+    });
+
+    // Matrix: team x lead source
+    const matrix = {};
+    jobs.forEach(job => {
+      const team = agentRoleMap[job.agent] || 'Unknown';
+      const lead = job.lead || 'Unknown';
+      const key = `${team}|${lead}`;
+
+      if (!matrix[key]) {
+        matrix[key] = {
+          team,
+          leadSource: lead,
+          totalProfit: 0,
+          jobCount: 0,
+          avgProfit: 0,
+          paidJobs: 0
+        };
+      }
+
+      matrix[key].totalProfit += job.profit || 0;
+      matrix[key].jobCount += 1;
+      if (job.status === 'paid') matrix[key].paidJobs += 1;
+    });
+
+    // Calculate averages
+    const result = Object.values(matrix).map(item => ({
+      ...item,
+      avgProfit: item.jobCount > 0 ? Math.round((item.totalProfit / item.jobCount) * 100) / 100 : 0,
+      paymentRate: item.jobCount > 0 ? Math.round((item.paidJobs / item.jobCount) * 100 * 100) / 100 : 0
+    })).sort((a, b) => b.totalProfit - a.totalProfit);
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Profit Distribution Analysis (Quartiles, outliers)
+app.get('/api/analytics/profit-distribution', authenticateToken, async (req, res) => {
+  try {
+    if (!dummyDataCollection) {
+      return res.status(503).json({ error: 'dummy_data collection not found' });
+    }
+
+    const jobs = await dummyDataCollection.find().toArray();
+    const profits = jobs.map(job => job.profit || 0).sort((a, b) => a - b);
+
+    const getPercentile = (arr, p) => {
+      const index = Math.ceil((arr.length * p) / 100) - 1;
+      return arr[index] || 0;
+    };
+
+    const sum = profits.reduce((a, b) => a + b, 0);
+    const mean = sum / profits.length;
+    const median = getPercentile(profits, 50);
+
+    // Calculate standard deviation
+    const variance = profits.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / profits.length;
+    const stdDev = Math.sqrt(variance);
+
+    res.json({
+      min: Math.min(...profits),
+      max: Math.max(...profits),
+      mean: Math.round(mean * 100) / 100,
+      median,
+      stdDev: Math.round(stdDev * 100) / 100,
+      quartiles: {
+        q1: getPercentile(profits, 25),
+        q2: median,
+        q3: getPercentile(profits, 75)
+      },
+      percentiles: {
+        p10: getPercentile(profits, 10),
+        p25: getPercentile(profits, 25),
+        p50: median,
+        p75: getPercentile(profits, 75),
+        p90: getPercentile(profits, 90),
+        p95: getPercentile(profits, 95),
+        p99: getPercentile(profits, 99)
+      },
+      totalJobs: profits.length,
+      totalProfit: sum
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Agent Specialization (Which agents excel at which lead sources)
+app.get('/api/analytics/agent-specialization', authenticateToken, async (req, res) => {
+  try {
+    if (!dummyDataCollection || !dummyRolesCollection) {
+      return res.status(503).json({ error: 'Required collections not found' });
+    }
+
+    const jobs = await dummyDataCollection.find().toArray();
+    const roles = await dummyRolesCollection.find().toArray();
+
+    const agentRoleMap = {};
+    roles.forEach(role => {
+      agentRoleMap[role.agent] = role.role;
+    });
+
+    // Agent x Lead matrix
+    const agentLeadPerformance = {};
+    jobs.forEach(job => {
+      const agent = job.agent;
+      const lead = job.lead || 'Unknown';
+
+      if (!agentLeadPerformance[agent]) {
+        agentLeadPerformance[agent] = {
+          agent,
+          team: agentRoleMap[agent] || 'Unknown',
+          leadSources: {}
+        };
+      }
+
+      if (!agentLeadPerformance[agent].leadSources[lead]) {
+        agentLeadPerformance[agent].leadSources[lead] = {
+          totalProfit: 0,
+          jobCount: 0,
+          avgProfit: 0
+        };
+      }
+
+      agentLeadPerformance[agent].leadSources[lead].totalProfit += job.profit || 0;
+      agentLeadPerformance[agent].leadSources[lead].jobCount += 1;
+    });
+
+    // Calculate best lead source for each agent
+    const result = Object.values(agentLeadPerformance).map(agent => {
+      const leadStats = Object.entries(agent.leadSources).map(([lead, stats]) => ({
+        leadSource: lead,
+        totalProfit: stats.totalProfit,
+        jobCount: stats.jobCount,
+        avgProfit: stats.jobCount > 0 ? Math.round((stats.totalProfit / stats.jobCount) * 100) / 100 : 0
+      }));
+
+      const bestLead = leadStats.sort((a, b) => b.totalProfit - a.totalProfit)[0];
+
+      return {
+        agent: agent.agent,
+        team: agent.team,
+        bestLeadSource: bestLead.leadSource,
+        bestLeadProfit: bestLead.totalProfit,
+        bestLeadJobCount: bestLead.jobCount,
+        bestLeadAvgProfit: bestLead.avgProfit,
+        allLeadSources: leadStats
+      };
+    }).sort((a, b) => b.bestLeadProfit - a.bestLeadProfit);
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Payment Collection Performance
+app.get('/api/analytics/payment-collection', authenticateToken, async (req, res) => {
+  try {
+    if (!dummyDataCollection || !dummyRolesCollection) {
+      return res.status(503).json({ error: 'Required collections not found' });
+    }
+
+    const jobs = await dummyDataCollection.find().toArray();
+    const roles = await dummyRolesCollection.find().toArray();
+
+    const agentRoleMap = {};
+    roles.forEach(role => {
+      agentRoleMap[role.agent] = role.role;
+    });
+
+    // Agent payment collection stats
+    const agentPaymentStats = {};
+    jobs.forEach(job => {
+      const agent = job.agent;
+
+      if (!agentPaymentStats[agent]) {
+        agentPaymentStats[agent] = {
+          agent,
+          team: agentRoleMap[agent] || 'Unknown',
+          totalJobs: 0,
+          paidJobs: 0,
+          unpaidJobs: 0,
+          paidProfit: 0,
+          unpaidProfit: 0,
+          paymentRate: 0
+        };
+      }
+
+      agentPaymentStats[agent].totalJobs += 1;
+      if (job.status === 'paid') {
+        agentPaymentStats[agent].paidJobs += 1;
+        agentPaymentStats[agent].paidProfit += job.profit || 0;
+      } else {
+        agentPaymentStats[agent].unpaidJobs += 1;
+        agentPaymentStats[agent].unpaidProfit += job.profit || 0;
+      }
+    });
+
+    // Calculate payment rates
+    const result = Object.values(agentPaymentStats).map(agent => ({
+      ...agent,
+      paymentRate: agent.totalJobs > 0 ? Math.round((agent.paidJobs / agent.totalJobs) * 100 * 100) / 100 : 0
+    })).sort((a, b) => b.paymentRate - a.paymentRate);
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -426,8 +894,8 @@ app.get('/api/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`\n📝 Login credentials:`);
+  console.log(`\n Server running on http://localhost:${PORT}`);
+  console.log(`\n Login credentials:`);
   console.log(`   Username: admin | Password: admin123`);
-  console.log(`   Username: manager | Password: manager123`);
+  console.log(`   Username: manager | Password: manager123\n`);
 });
