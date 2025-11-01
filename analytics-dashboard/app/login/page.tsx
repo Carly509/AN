@@ -2,22 +2,19 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart3, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { BarChart3, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('admin');
+  const [email, setEmail] = useState(
+    process.env.NEXT_PUBLIC_FAKE_EMAIL || 'admin@company.com'
+  );
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(username, password);
-  };
-
-  const fillDemoCredentials = (user: 'admin' | 'manager') => {
-    setUsername(user);
-    setPassword(user === 'admin' ? 'admin123' : 'manager123');
+    await login(email, password);
   };
 
   return (
@@ -48,19 +45,19 @@ export default function LoginPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Username Field */}
+              {/* Email Field */}
               <div className="space-y-2">
-                <label htmlFor="username" className="block text-sm font-medium text-slate-300">
-                  Username
+                <label htmlFor="email" className="block text-sm font-medium text-slate-300">
+                  Email Address
                 </label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                   <input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
                     required
                     disabled={loading}
                     className="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-12 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -134,33 +131,20 @@ export default function LoginPage() {
 
             {/* Demo Access Info */}
             <div className="mt-8 pt-6 border-t border-slate-700/50">
-              <p className="text-center text-slate-400 text-xs mb-3">Demo Credentials</p>
-              <div className="space-y-2">
-                {/* Admin Demo Button */}
-                <button
-                  type="button"
-                  onClick={() => fillDemoCredentials('admin')}
-                  disabled={loading}
-                  className="w-full bg-slate-800/30 border border-slate-700 rounded-lg p-3 hover:bg-slate-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
-                >
-                  <p className="text-slate-400 text-xs">
-                    <span className="font-semibold text-slate-300">Admin:</span>{' '}
-                    <span className="text-slate-300 font-mono">admin</span> / <span className="text-slate-300 font-mono">admin123</span>
-                  </p>
-                </button>
-
-                {/* Manager Demo Button */}
-                <button
-                  type="button"
-                  onClick={() => fillDemoCredentials('manager')}
-                  disabled={loading}
-                  className="w-full bg-slate-800/30 border border-slate-700 rounded-lg p-3 hover:bg-slate-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
-                >
-                  <p className="text-slate-400 text-xs">
-                    <span className="font-semibold text-slate-300">Manager:</span>{' '}
-                    <span className="text-slate-300 font-mono">manager</span> / <span className="text-slate-300 font-mono">manager123</span>
-                  </p>
-                </button>
+              <p className="text-center text-slate-400 text-xs mb-3">Demo Access</p>
+              <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-3">
+                <p className="text-slate-400 text-xs">
+                  <span className="font-semibold text-slate-300">Email:</span>{' '}
+                  <span className="text-slate-300 font-mono">
+                    {process.env.NEXT_PUBLIC_FAKE_EMAIL}
+                  </span>
+                </p>
+                <p className="text-slate-400 text-xs mt-1">
+                  <span className="font-semibold text-slate-300">Pass:</span>{' '}
+                  <span className="text-slate-300 font-mono">
+                    {process.env.NEXT_PUBLIC_FAKE_PASSWORD}
+                  </span>
+                </p>
               </div>
             </div>
           </div>
