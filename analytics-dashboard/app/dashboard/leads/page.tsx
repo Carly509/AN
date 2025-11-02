@@ -30,10 +30,10 @@ export default function LeadsPage() {
               <h1 className="text-3xl md:text-4xl font-bold text-white">Leads & ROI Analysis</h1>
               <p className="text-slate-400 mt-2 text-sm md:text-base">Sales performance and lead conversion overview.</p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition text-sm w-full md:w-auto justify-center md:justify-start">
+            {/* <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition text-sm w-full md:w-auto justify-center md:justify-start">
               <Calendar className="w-4 h-4" />
               <span>Oct 1, 2023 - Oct 31, 2023</span>
-            </button>
+            </button> */}
           </div>
         </div>
 

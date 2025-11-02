@@ -65,7 +65,7 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
+            {/* <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
               <div className="relative">
                 <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition">
                   <Calendar className="w-4 h-4" />
@@ -78,7 +78,7 @@ export default function DashboardPage() {
                 <Download className="w-4 h-4" />
                 Export
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
 
