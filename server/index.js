@@ -75,7 +75,6 @@ async function connectToMongoDB() {
 
 connectToMongoDB();
 
-// Fake users for authentication
 const FAKE_USERS = [
   {
     id: '1',
@@ -111,7 +110,6 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -142,7 +140,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Verify token
+
 app.get('/api/auth/verify', authenticateToken, (req, res) => {
   res.json({ valid: true, user: req.user });
 });
@@ -173,7 +171,7 @@ app.get('/api/roles', authenticateToken, async (req, res) => {
   }
 });
 
-// Overall Analytics Summary
+
 app.get('/api/analytics/summary', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection) {
@@ -214,7 +212,6 @@ app.get('/api/analytics/summary', authenticateToken, async (req, res) => {
   }
 });
 
-// Profit by Team/Role (Tech Sales, Home Sales, Auto Sales)
 app.get('/api/analytics/profit-by-team', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -273,7 +270,6 @@ app.get('/api/analytics/profit-by-team', authenticateToken, async (req, res) => 
   }
 });
 
-// Profit by Individual Agent
 app.get('/api/analytics/profit-by-agent', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -332,7 +328,6 @@ app.get('/api/analytics/profit-by-agent', authenticateToken, async (req, res) =>
   }
 });
 
-// Profit by Lead Source (Outreach Method)
 app.get('/api/analytics/profit-by-lead', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection) {
@@ -386,7 +381,7 @@ app.get('/api/analytics/profit-by-lead', authenticateToken, async (req, res) => 
   }
 });
 
-// Top Performers (Top agents by profit)
+
 app.get('/api/analytics/top-performers', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -430,7 +425,6 @@ app.get('/api/analytics/top-performers', authenticateToken, async (req, res) => 
   }
 });
 
-// Efficiency Metrics
 app.get('/api/analytics/efficiency', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -473,9 +467,6 @@ app.get('/api/analytics/efficiency', authenticateToken, async (req, res) => {
   }
 });
 
-// ==================== ADVANCED ANALYTICS ====================
-
-// Time-based Analytics (Trends over time)
 app.get('/api/analytics/trends', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection) {
@@ -526,7 +517,6 @@ app.get('/api/analytics/trends', authenticateToken, async (req, res) => {
   }
 });
 
-// Agent Performance Comparison (Best vs Worst)
 app.get('/api/analytics/performance-comparison', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -599,7 +589,6 @@ app.get('/api/analytics/performance-comparison', authenticateToken, async (req, 
   }
 });
 
-// Lead Source ROI Analysis
 app.get('/api/analytics/lead-roi', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection) {
@@ -655,7 +644,7 @@ app.get('/api/analytics/lead-roi', authenticateToken, async (req, res) => {
   }
 });
 
-// Team Lead Source Performance (Which team is best at which lead source)
+
 app.get('/api/analytics/team-lead-matrix', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -706,7 +695,7 @@ app.get('/api/analytics/team-lead-matrix', authenticateToken, async (req, res) =
   }
 });
 
-// Profit Distribution Analysis (Quartiles, outliers)
+
 app.get('/api/analytics/profit-distribution', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection) {
@@ -757,7 +746,6 @@ app.get('/api/analytics/profit-distribution', authenticateToken, async (req, res
   }
 });
 
-// Agent Specialization (Which agents excel at which lead sources)
 app.get('/api/analytics/agent-specialization', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -826,7 +814,6 @@ app.get('/api/analytics/agent-specialization', authenticateToken, async (req, re
   }
 });
 
-// Payment Collection Performance
 app.get('/api/analytics/payment-collection', authenticateToken, async (req, res) => {
   try {
     if (!dummyDataCollection || !dummyRolesCollection) {
@@ -881,7 +868,6 @@ app.get('/api/analytics/payment-collection', authenticateToken, async (req, res)
   }
 });
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',

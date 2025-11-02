@@ -1,4 +1,3 @@
-// ============ AUTHENTICATION ============
 
 export interface User {
   username: string;
@@ -10,33 +9,26 @@ export interface AuthResponse {
   user?: User;
 }
 
-// ============ SUMMARY STATS ============
-
 export interface SummaryStats {
   totalProfit: number;
-  totalAgents: number;
-  totalLeads: number;
-  avgProfitPerAgent: number;
-  conversionRate?: number;
-  dateRange?: {
-    start: string;
-    end: string;
-  };
+  totalJobs: number;
+  avgProfitPerJob: number;
+  paidJobs: number;
+  unpaidJobs: number;
+  paidProfit: number;
+  unpaidProfit: number;
+  paymentRate: number;
 }
-
-// ============ TEAM PERFORMANCE ============
 
 export interface TeamPerformance {
-  teamId: string;
-  teamName: string;
-  profit: number;
-  agentCount: number;
-  avgProfitPerAgent: number;
-  conversionRate?: number;
-  leadsHandled?: number;
+  team: string;
+  totalProfit: number;
+  jobCount: number;
+  avgProfit: number;
+  paidJobs: number;
+  unpaidJobs: number;
+  paymentRate: number;
 }
-
-// ============ AGENT PERFORMANCE ============
 
 export interface AgentPerformance {
   agentId: string;
@@ -48,26 +40,26 @@ export interface AgentPerformance {
   rank?: number;
 }
 
-// ============ LEAD SOURCE EFFECTIVENESS ============
-
 export interface LeadSourceEffectiveness {
-  method: string;
+  leadSource: string;
   totalProfit: number;
-  leadCount: number;
-  avgProfitPerLead: number;
+  jobCount: number;
+  avgProfit: number;
+  paidJobs: number;
+  unpaidJobs: number;
   conversionRate: number;
+  paymentRate: number;
 }
-
-// ============ TREND DATA ============
 
 export interface TrendData {
-  date: string;
-  profit: number;
-  leads: number;
-  conversions: number;
+  month: string;
+  totalProfit: number;
+  jobCount: number;
+  avgProfit: number;
+  paidJobs: number;
+  unpaidJobs: number;
+  paymentRate: number;
 }
-
-// ============ PERFORMANCE COMPARISON ============
 
 export interface PerformanceComparison {
   topPerformers: AgentPerformance[];
@@ -79,8 +71,6 @@ export interface PerformanceComparison {
   };
 }
 
-// ============ LEAD ROI ============
-
 export interface LeadROI {
   method: string;
   totalInvestment: number;
@@ -90,14 +80,41 @@ export interface LeadROI {
   roi_percentage?: number;
 }
 
-// ============ TEAM LEAD MATRIX ============
+export interface TopPerformer {
+  agent: string;
+  team: string;
+  totalProfit: number;
+  jobCount: number;
+}
+
+export interface ProfitDistribution {
+  min: number;
+  max: number;
+  mean: number;
+  median: number;
+  stdDev: number;
+  quartiles: {
+    q1: number;
+    q2: number;
+    q3: number;
+  };
+  percentiles: {
+    p10: number;
+    p25: number;
+    p50: number;
+    p75: number;
+    p90: number;
+    p95: number;
+    p99: number;
+  };
+  totalJobs: number;
+  totalProfit: number;
+}
 
 export interface TeamLeadMatrixRow {
   team: string;
   [method: string]: any;
 }
-
-// ============ PROFIT DISTRIBUTION ============
 
 export interface ProfitDistribution {
   mean: number;
@@ -113,8 +130,6 @@ export interface ProfitDistribution {
   };
 }
 
-// ============ AGENT SPECIALIZATION ============
-
 export interface AgentSpecialization {
   agentId: string;
   agentName: string;
@@ -127,8 +142,6 @@ export interface AgentSpecialization {
   }[];
 }
 
-// ============ PAYMENT COLLECTION ============
-
 export interface PaymentCollection {
   agentId: string;
   agentName: string;
@@ -137,8 +150,6 @@ export interface PaymentCollection {
   totalCollected: number;
   rank?: number;
 }
-
-// ============ COMPANY EFFICIENCY ============
 
 export interface CompanyEfficiency {
   score: number;
@@ -149,15 +160,11 @@ export interface CompanyEfficiency {
   [key: string]: any;
 }
 
-// ============ API ERROR ============
-
 export interface ApiError {
   message: string;
   statusCode: number;
   error?: string;
 }
-
-// ============ PAGINATION ============
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -166,8 +173,6 @@ export interface PaginatedResponse<T> {
   total: number;
   pages: number;
 }
-
-// ============ FILTER OPTIONS ============
 
 export interface DateRange {
   start: string;

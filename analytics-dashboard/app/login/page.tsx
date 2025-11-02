@@ -19,18 +19,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-      {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl opacity-20"></div>
         <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl opacity-20"></div>
       </div>
 
-      {/* Login Card */}
       <div className="relative w-full max-w-md">
         <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
-          {/* Card Content */}
           <div className="p-8 sm:p-10">
-            {/* Header */}
             <div className="text-center mb-8">
               <div className="flex justify-center mb-4">
                 <div className="bg-blue-500/20 p-3 rounded-lg">
@@ -43,9 +39,7 @@ export default function LoginPage() {
               <p className="text-slate-400 text-sm">Log in to Your Dashboard</p>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email Field */}
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-medium text-slate-300">
                   Email Address
@@ -105,14 +99,12 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Error Message */}
               {error && (
                 <div className="bg-red-500/20 border border-red-500/50 text-red-400 text-sm px-4 py-3 rounded-lg">
                   {error}
                 </div>
               )}
 
-              {/* Sign In Button */}
               <button
                 type="submit"
                 disabled={loading}
@@ -129,7 +121,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo Access Info */}
             <div className="mt-8 pt-6 border-t border-slate-700/50">
               <p className="text-center text-slate-400 text-xs mb-3">Demo Access</p>
               <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-3">
@@ -149,8 +140,6 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-
-        {/* Bottom Text */}
         <p className="text-center text-slate-400 text-sm mt-6">
           Don`t have an account?{' '}
           <a href="#" className="text-blue-400 hover:text-blue-300 transition-colors font-medium">

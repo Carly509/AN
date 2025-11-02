@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Providers } from './providers';
+import { SidebarProvider } from '@/lib/context/SidebarContext';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-slate-950">
-        <Providers>{children}</Providers>
+        <SidebarProvider><Providers>{children}</Providers></SidebarProvider>
       </body>
     </html>
   );
