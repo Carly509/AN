@@ -105,7 +105,6 @@ export default function TopBottomPerformersChart({
               layout="vertical"
               data={chartData}
               margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-              isAnimationActive={false}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
