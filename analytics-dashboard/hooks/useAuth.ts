@@ -85,7 +85,7 @@ export const useAuth = (): UseAuthReturn => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     setUser(null);
-    router.push('/login');
+    router.push('/');
   }, [router]);
 
   const getCurrentUser = useCallback((): User | null => {
