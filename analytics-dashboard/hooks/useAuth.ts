@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/axios';
-import type { User } from '@/lib/types';
+import type { User, AuthResponse } from '@/lib/types';
 
-// Parse valid credentials from env
 const getValidCredentials = (): Map<string, string> => {
   const credentialsStr =
     process.env.NEXT_PUBLIC_VALID_CREDENTIALS || 'admin:admin123,manager:manager123';
@@ -21,7 +20,16 @@ const getValidCredentials = (): Map<string, string> => {
 
 const VALID_CREDENTIALS = getValidCredentials();
 
-export const useAuth = () => {
+interface UseAuthReturn {
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => void;
+  loading: boolean;
+  error: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
+export const useAuth = (): UseAuthReturn => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -33,7 +41,6 @@ export const useAuth = () => {
       setError(null);
 
       try {
-        // Validate against hardcoded credentials
         const validPassword = VALID_CREDENTIALS.get(username);
 
         if (!validPassword || password !== validPassword) {
@@ -42,13 +49,9 @@ export const useAuth = () => {
           return;
         }
 
-        console.log(`✅ Credentials validated for user: ${username}`);
-
-        // Determine user role based on username
         const role = username === 'admin' ? 'admin' : 'manager';
 
-        // Call backend to get JWT token
-        const response = await apiClient.post('/api/auth/login', {
+        const response = await apiClient.post<AuthResponse>('/api/auth/login', {
           username,
           password,
         });
@@ -59,19 +62,11 @@ export const useAuth = () => {
           throw new Error('No token returned from server');
         }
 
-        // Store token and user info in localStorage
         localStorage.setItem('authToken', token);
-        localStorage.setItem(
-          'user',
-          JSON.stringify({ username, role })
-        );
+        localStorage.setItem('user', JSON.stringify({ username, role, id: '' }));
 
-        console.log(`✅ Token and user info stored for ${username}`);
+        setUser({ username, role, id: '', name: username });
 
-        // Set user state
-        setUser({ username, role });
-
-        // Redirect to dashboard
         router.push('/dashboard');
       } catch (err) {
         const errorMessage =
@@ -79,7 +74,6 @@ export const useAuth = () => {
             ? err.message
             : 'Login failed. Please try again.';
         setError(errorMessage);
-        console.error('❌ Login error:', errorMessage);
       } finally {
         setLoading(false);
       }
@@ -91,7 +85,6 @@ export const useAuth = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     setUser(null);
-    console.log('✅ Token and user info removed');
     router.push('/login');
   }, [router]);
 
@@ -101,7 +94,7 @@ export const useAuth = () => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
-        return JSON.parse(userStr);
+        return JSON.parse(userStr) as User;
       } catch {
         return null;
       }

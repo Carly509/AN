@@ -1,14 +1,52 @@
+// ==================== AUTH TYPES ====================
 
 export interface User {
+  id: string;
   username: string;
   role: 'admin' | 'manager';
+  name: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
 }
 
 export interface AuthResponse {
   token: string;
-  user?: User;
+  user: User;
 }
 
+export interface AuthVerifyResponse {
+  valid: boolean;
+  user: {
+    id: string;
+    username: string;
+    role: 'admin' | 'manager';
+  };
+}
+
+// ==================== DATA TYPES ====================
+
+export interface Job {
+  _id: string;
+  agent: string;
+  timestamp: string;
+  profit: number;
+  jobNumber: number;
+  status: 'paid' | 'unpaid';
+  lead: string;
+}
+
+export interface Role {
+  _id: string;
+  agent: string;
+  role: string; // 'Tech Sales' | 'Home Sales' | 'Auto Sales'
+}
+
+// ==================== ANALYTICS TYPES ====================
+
+// /api/analytics/summary
 export interface SummaryStats {
   totalProfit: number;
   totalJobs: number;
@@ -20,6 +58,7 @@ export interface SummaryStats {
   paymentRate: number;
 }
 
+// /api/analytics/profit-by-team
 export interface TeamPerformance {
   team: string;
   totalProfit: number;
@@ -30,16 +69,19 @@ export interface TeamPerformance {
   paymentRate: number;
 }
 
+// /api/analytics/profit-by-agent
 export interface AgentPerformance {
-  agentId: string;
-  agentName: string;
-  department: string;
+  agent: string;
+  team: string;
   totalProfit: number;
-  leadsHandled: number;
-  conversionRate: number;
-  rank?: number;
+  jobCount: number;
+  avgProfit: number;
+  paidJobs: number;
+  unpaidJobs: number;
+  paymentRate: number;
 }
 
+// /api/analytics/profit-by-lead
 export interface LeadSourceEffectiveness {
   leadSource: string;
   totalProfit: number;
@@ -51,6 +93,27 @@ export interface LeadSourceEffectiveness {
   paymentRate: number;
 }
 
+// /api/analytics/top-performers
+export interface TopPerformer {
+  agent: string;
+  team: string;
+  totalProfit: number;
+  jobCount: number;
+}
+
+// /api/analytics/efficiency
+export interface CompanyEfficiency {
+  totalAgents: number;
+  totalJobs: number;
+  avgJobsPerAgent: number;
+  paidJobs: number;
+  unpaidJobs: number;
+  paymentRate: number;
+  uniqueLeadSources: number;
+  teamDistribution: Record<string, number>;
+}
+
+// /api/analytics/trends
 export interface TrendData {
   month: string;
   totalProfit: number;
@@ -61,32 +124,57 @@ export interface TrendData {
   paymentRate: number;
 }
 
+// /api/analytics/performance-comparison
 export interface PerformanceComparison {
-  topPerformers: AgentPerformance[];
-  bottomPerformers: AgentPerformance[];
-  averageMetrics: {
+  topPerformers: Array<{
+    agent: string;
+    team: string;
+    totalProfit: number;
+    jobCount: number;
     avgProfit: number;
-    avgLeads: number;
-    avgConversion: number;
-  };
+    paidJobs: number;
+    paymentRate: number;
+  }>;
+  bottomPerformers: Array<{
+    agent: string;
+    team: string;
+    totalProfit: number;
+    jobCount: number;
+    avgProfit: number;
+    paidJobs: number;
+    paymentRate: number;
+  }>;
+  teamAverages: Record<string, number>;
+  companyAverage: number;
 }
 
+// /api/analytics/lead-roi
 export interface LeadROI {
-  method: string;
-  totalInvestment: number;
-  totalReturn: number;
+  leadSource: string;
+  totalProfit: number;
+  paidProfit: number;
+  unpaidProfit: number;
+  jobCount: number;
+  paidJobs: number;
+  unpaidJobs: number;
+  avgProfit: number;
+  avgPaidProfit: number;
+  paymentRate: number;
   roi: number;
-  profitMargin: number;
-  roi_percentage?: number;
 }
 
-export interface TopPerformer {
-  agent: string;
+// /api/analytics/team-lead-matrix
+export interface TeamLeadMatrix {
   team: string;
+  leadSource: string;
   totalProfit: number;
   jobCount: number;
+  avgProfit: number;
+  paidJobs: number;
+  paymentRate: number;
 }
 
+// /api/analytics/profit-distribution
 export interface ProfitDistribution {
   min: number;
   max: number;
@@ -111,77 +199,82 @@ export interface ProfitDistribution {
   totalProfit: number;
 }
 
-export interface TeamLeadMatrixRow {
+// /api/analytics/agent-specialization
+export interface AgentSpecialization {
+  agent: string;
   team: string;
-  [method: string]: any;
+  bestLeadSource: string;
+  bestLeadProfit: number;
+  bestLeadJobCount: number;
+  bestLeadAvgProfit: number;
+  allLeadSources: Array<{
+    leadSource: string;
+    totalProfit: number;
+    jobCount: number;
+    avgProfit: number;
+  }>;
 }
 
-export interface ProfitDistribution {
-  mean: number;
-  median: number;
-  stdDev: number;
-  min: number;
-  max: number;
-  percentiles: {
-    p25: number;
-    p50: number;
-    p75: number;
-    p90: number;
+// /api/analytics/payment-collection
+export interface PaymentCollection {
+  agent: string;
+  team: string;
+  totalJobs: number;
+  paidJobs: number;
+  unpaidJobs: number;
+  paidProfit: number;
+  unpaidProfit: number;
+  paymentRate: number;
+}
+
+// ==================== UTILITY TYPES ====================
+
+export interface ApiError {
+  error: string;
+}
+
+export interface HealthCheck {
+  status: 'ok';
+  timestamp: string;
+  collections: {
+    dummy_data: boolean;
+    dummy_roles: boolean;
   };
 }
 
-export interface AgentSpecialization {
-  agentId: string;
-  agentName: string;
-  bestMethod: string;
-  bestMethodProfit: number;
-  methodBreakdown: {
-    method: string;
-    profit: number;
-    percentage: number;
-  }[];
+// ==================== QUERY PARAMS ====================
+
+export interface TopPerformersQuery {
+  limit?: number;
 }
 
-export interface PaymentCollection {
-  agentId: string;
-  agentName: string;
-  collectionRate: number;
-  totalOutstanding: number;
-  totalCollected: number;
-  rank?: number;
+export interface DateRange {
+  start?: string;
+  end?: string;
 }
 
-export interface CompanyEfficiency {
-  score: number;
-  avgLeadsPerAgent: number;
-  avgProfitPerLead: number;
-  overallConversionRate: number;
-  efficiency_percentage?: number;
-  [key: string]: any;
+export interface AnalyticsFilters {
+  dateRange?: DateRange;
+  team?: string;
+  agent?: string;
+  leadSource?: string;
 }
 
-export interface ApiError {
-  message: string;
-  statusCode: number;
-  error?: string;
-}
+// ==================== HELPER TYPES ====================
 
+export type LeadSource = 'Cold Call' | 'Google Ads' | 'Recommendation' | string;
+export type TeamRole = 'Tech Sales' | 'Home Sales' | 'Auto Sales' | string;
+export type JobStatus = 'paid' | 'unpaid';
+
+// ==================== API RESPONSE WRAPPERS ====================
+
+export type ApiResponse<T> = T | ApiError;
+
+// Generic paginated response if you add pagination later
 export interface PaginatedResponse<T> {
   data: T[];
   page: number;
   limit: number;
   total: number;
-  pages: number;
-}
-
-export interface DateRange {
-  start: string;
-  end: string;
-}
-
-export interface AnalyticsFilters {
-  dateRange?: DateRange;
-  teamId?: string;
-  agentId?: string;
-  method?: string;
+  totalPages: number;
 }

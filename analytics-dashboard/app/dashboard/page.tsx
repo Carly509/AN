@@ -20,7 +20,7 @@ import {
   useSummary,
   useProfitByTeam,
   useProfitByLead,
-  useAgentSpecialization,
+  useTopPerformers,
   useTrends,
   useProfitDistribution
 } from '@/hooks/useAnalytics';
@@ -34,22 +34,26 @@ export default function DashboardPage() {
 
   const { data: summary, isLoading: summaryLoading } = useSummary(dateRange);
   const { data: teams, isLoading: teamsLoading } = useProfitByTeam(dateRange);
-  const { data: leadSources, isLoading: leadSourcesLoading } = useProfitByLead();
-  const { data: agents, isLoading: agentsLoading } = useAgentSpecialization();
+  const { data: leadSources, isLoading: leadSourcesLoading } =
+    useProfitByLead();
+  const { data: topPerformers, isLoading: topPerformersLoading } =
+    useTopPerformers();
   const { data: trends, isLoading: trendsLoading } = useTrends(dateRange);
-  const { data: profitDist, isLoading: profitDistLoading } = useProfitDistribution();
+  const { data: profitDist, isLoading: profitDistLoading } =
+    useProfitDistribution();
 
   return (
     <div className="min-h-screen bg-slate-950">
       <DashboardNav />
+
       <Sidebar />
 
-      <main
+        <main
         className={`mt-16 p-3 md:p-6 overflow-y-auto transition-all duration-300 ${
-          isCollapsed ? 'ml-0 lg:ml-20' : 'ml-0 lg:ml-56'
+            isCollapsed ? 'ml-0 lg:ml-20' : 'ml-0 lg:ml-56'
         }`}
         style={{ height: 'calc(100vh - 64px)' }}
-      >
+        >
         <div className="mb-8">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
@@ -57,20 +61,20 @@ export default function DashboardPage() {
                 Sales Overview
               </h1>
               <p className="text-slate-400 mt-2">
-                Here's a look at your sales performance.
+                Here`s a look at your sales performance.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
               <div className="relative">
-                <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition text-sm">
+                <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition">
                   <Calendar className="w-4 h-4" />
                   Last 30 Days
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
 
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-sm">
+              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
                 <Download className="w-4 h-4" />
                 Export
               </button>
@@ -79,7 +83,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
               title="Total Profit"
               value={
@@ -123,6 +127,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6">
+            {/* Profit Distribution Chart - Uses useProfitDistribution() */}
             <ProfitDistributionChart
               data={profitDist}
               isLoading={profitDistLoading}
@@ -130,12 +135,12 @@ export default function DashboardPage() {
           </div>
 
           <RecentTransactions
-            performers={agents || []}
-            isLoading={agentsLoading}
+            performers={topPerformers || []}
+            isLoading={topPerformersLoading}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/50 rounded-lg p-4 md:p-6">
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/50 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-white mb-6">
                 Team Performance
               </h3>
@@ -157,13 +162,13 @@ export default function DashboardPage() {
                         className="flex justify-between items-center pb-3 border-b border-slate-700/30 last:border-0"
                       >
                         <div>
-                          <p className="text-white font-medium text-sm md:text-base">{team.team}</p>
+                          <p className="text-white font-medium">{team.team}</p>
                           <p className="text-xs text-slate-400">
                             {(team.jobCount || 0)} jobs • {((team.paymentRate || 0)).toFixed(1)}% paid
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-emerald-400 text-sm md:text-base">
+                          <p className="font-semibold text-emerald-400">
                             ${(team.totalProfit || 0).toLocaleString()}
                           </p>
                           <p className="text-xs text-slate-400">
@@ -181,7 +186,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/50 rounded-lg p-4 md:p-6">
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/50 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-white mb-6">
                 Lead Sources
               </h3>
@@ -203,7 +208,7 @@ export default function DashboardPage() {
                         className="flex justify-between items-center pb-3 border-b border-slate-700/30 last:border-0"
                       >
                         <div>
-                          <p className="text-white font-medium capitalize text-sm md:text-base">
+                          <p className="text-white font-medium capitalize">
                             {source.leadSource}
                           </p>
                           <p className="text-xs text-slate-400">
@@ -211,7 +216,7 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-blue-400 text-sm md:text-base">
+                          <p className="font-semibold text-blue-400">
                             ${(source.totalProfit || 0).toLocaleString()}
                           </p>
                           <p className="text-xs text-slate-400">
